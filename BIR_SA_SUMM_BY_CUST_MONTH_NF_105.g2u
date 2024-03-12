@@ -1,0 +1,406 @@
+Program.Sub.ScreenSU.Start
+gui.SS_Form1..create
+gui.SS_Form1..caption("Summary By Customer/Month - NonFiscal")
+gui.SS_Form1..size(4050, 2510)
+gui.SS_Form1..position(0,0)
+gui.SS_Form1..alwaysontop(False)
+gui.SS_Form1..fontname("Arial")
+gui.SS_Form1..fontsize(8)
+gui.SS_Form1..forecolor(0)
+gui.SS_Form1..fontstyle(,,,,)
+gui.SS_Form1..BackColor(-2147483633)
+gui.SS_Form1..controlbox(True)
+gui.SS_Form1..maxbutton(False)
+gui.SS_Form1..minbutton(False)
+gui.SS_Form1..mousepointer(0)
+gui.SS_Form1..moveable(True)
+gui.SS_Form1..sizeable(False)
+gui.SS_Form1..ShowInTaskBar(True)
+gui.SS_Form1..titlebar(True)
+gui.SS_Form1..event(unload,  ss_form1_unload)
+gui.SS_Form1.lbl_dtpYear.create(label,"Year",True,1800,200,1,100,135,True,0,Arial,8,-2147483633,0)
+gui.SS_Form1.dtpYear.create(datepicker)
+gui.SS_Form1.dtpYear.visible(True)
+gui.SS_Form1.dtpYear.size(1800, 345)
+gui.SS_Form1.dtpYear.position(100, 335)
+gui.SS_Form1.dtpYear.enabled(True)
+gui.SS_Form1.dtpYear.fontname("Arial")
+gui.SS_Form1.lbl_dtpYear.LabelStretch(True)
+gui.SS_Form1.lbl_dtpYear.setinternationalid(375601)
+
+gui.SS_Form1.chkProgBill.create(checkbox)
+gui.SS_Form1.chkProgBill.Caption("Include Progress Bill Lines")
+gui.SS_Form1.chkProgBill.visible(True)
+gui.SS_Form1.chkProgBill.size(3600, 300)
+gui.SS_Form1.chkProgBill.position(100, 765)
+gui.SS_Form1.chkProgBill.enabled(True)
+gui.SS_Form1.chkProgBill.fontname("Arial")
+gui.SS_Form1.chkProgBill.fontsize(8)
+gui.SS_Form1.chkProgBill.setinternationalid(291501)
+
+gui.SS_Form1.chkExclusion.create(checkbox)
+gui.SS_Form1.chkExclusion.Caption("Use Exclusion Accounts to Exclude Records")
+gui.SS_Form1.chkExclusion.visible(True)
+gui.SS_Form1.chkExclusion.size(3600, 300)
+gui.SS_Form1.chkExclusion.position(100, 1150)
+gui.SS_Form1.chkExclusion.enabled(True)
+gui.SS_Form1.chkExclusion.fontname("Arial")
+gui.SS_Form1.chkExclusion.fontsize(8)
+gui.SS_Form1.chkExclusion.setinternationalid(229908)
+
+gui.SS_Form1.cmdPrint.create(button)
+gui.SS_Form1.cmdPrint.Caption("Print")
+gui.SS_Form1.cmdPrint.visible(True)
+gui.SS_Form1.cmdPrint.size(1000, 360)
+gui.SS_Form1.cmdPrint.position(100, 1535)
+gui.SS_Form1.cmdPrint.enabled(True)
+gui.SS_Form1.cmdPrint.fontname("Arial")
+gui.SS_Form1.cmdPrint.fontsize(8)
+gui.SS_Form1.cmdPrint.setinternationalid(452800)
+gui.SS_Form1.cmdPrint.event(click,  cmdprint_click)
+
+Program.Sub.ScreenSU.End
+
+Program.Sub.Preflight.Start
+Variable.Global.iCon.Declare(Long,0)
+Variable.Global.iBIRUNID.Declare(Long,0)
+Variable.Global.iLOGID.Declare(Long,0)
+Program.Sub.Preflight.End
+
+Program.Sub.Main.Start
+F.Intrinsic.Control.SetErrorHandler("Main_Err")
+F.Intrinsic.Control.ClearErrors
+V.Local.sError.Declare(String)
+'show the year only
+'Modes 
+'Invoices 263
+'InvoiceLines 386
+GUI.SS_Form1.dtpYear.CustomFormat("yyyy")
+Gui.SS_Form1..ApplyTranslation
+Gui.SS_Form1.dtpYear.Value(v.Ambient.Date)
+F.ODBC.Connection!conX.OpenCompanyConnection
+F.Global.Object.CreateDB("GlobalDB",v.Caller.CompanyCode,v.Ambient.DBServerName,True,v.Global.iCon) 
+Gui.SS_Form1..Show
+F.Intrinsic.Control.ExitSub
+F.Intrinsic.Control.Label("Main_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: BIR_SA_SUMM_BY_CUST_MONTH_NF_105.g2u",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	Function.Intrinsic.Control.CallSub(ss_form1_unload)
+Function.Intrinsic.Control.EndIf
+Program.Sub.Main.End
+
+Program.Sub.cmdPrint_Click.Start
+F.Intrinsic.Control.SetErrorHandler("cmdPrint_Click_Err")
+F.Intrinsic.Control.ClearErrors
+V.Local.sError.Declare(String)
+v.local.dDateStart.Declare(Date)
+v.local.dDateEnd.Declare(Date)
+v.Local.sMonth.Declare(String)
+v.Local.sDay.Declare(String)
+v.Local.sYear.Declare(String)
+gui.SS_Form1..Visible(False)
+F.Global.BI.GetRunID(v.Global.iBIRUNID) 
+F.Global.BI.StartLogging(v.Global.iBIRUNID,-1,-1,"",v.Global.iLOGID)
+F.Global.Object.Create("oLine","Sales.Invoicing.InvoiceLines","GLOBALDB",v.Global.iCon)
+F.Global.Object.Create("oHead","Sales.Invoicing.Invoices","GLOBALDB",v.Global.iCon)
+
+F.Intrinsic.Date.Year(v.Screen.SS_Form1!dtpYear.Value,v.Local.sYear)
+'since this is non-fiscal our date range will be from todays date to the Jan 1st of the year they selected.
+F.Intrinsic.Date.DateSerial(v.local.sYear,01,01,v.Local.dDateStart)
+F.Intrinsic.Date.DateSerial(v.local.sYear,12,31,v.Local.ddateEnd)
+
+'here is where we get the modes. 
+Function.Intrinsic.Control.CallSub(loaddata,"dDateStart",v.Local.dDateStart,"dDateEnd",v.Local.dDateEnd) 
+'Subtract 1 year for the previous year. 
+F.Intrinsic.Date.DateAdd("YYYY",-1,v.Local.dDateStart,v.Local.dDateStart) 
+F.Intrinsic.Date.DateAdd("YYYY",-1,v.Local.dDateEnd,v.Local.dDateEnd) 
+Function.Intrinsic.Control.CallSub(loaddata,"dDateStart",v.Local.dDateStart,"dDateEnd",v.Local.dDateEnd) 
+'Subtract 1 more year for the previous year to the previous
+F.Intrinsic.Date.DateAdd("YYYY",-1,v.Local.dDateStart,v.Local.dDateStart) 
+F.Intrinsic.Date.DateAdd("YYYY",-1,v.Local.dDateEnd,v.Local.dDateEnd) 
+Function.Intrinsic.Control.CallSub(loaddata,"dDateStart",v.Local.dDateStart,"dDateEnd",v.Local.dDateEnd) 
+
+'if they did not check to include progress bills 
+F.Intrinsic.Control.If(v.screen.SS_FORM1!chkProgBill.value,<>,1)
+	'remove progress bill lines.		
+	Function.Intrinsic.Control.CallSub(removeprogressbills)
+F.Intrinsic.Control.EndIf
+'if they checked to exclude exclusion accounts.
+F.Intrinsic.Control.If(v.Screen.SS_Form1!chkExclusion.Value,=,1)
+	'filter out exclusions.  
+	F.Intrinsic.Control.CallSub(RemoveExclAccts)	
+F.Intrinsic.Control.Endif
+Function.Intrinsic.Control.CallSub(summarizedata,"Year",v.Local.sYear)
+Function.Intrinsic.Control.CallSub(savetodb) 
+Function.Intrinsic.Control.CallSub(callbi) 
+
+F.Intrinsic.Control.ExitSub
+F.Intrinsic.Control.Label("cmdPrint_Click_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: BIR_SA_SUMM_BY_CUST_MONTH_NF_105.g2u",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	Function.Intrinsic.Control.CallSub(ss_form1_unload)	
+Function.Intrinsic.Control.EndIf
+Program.Sub.cmdPrint_Click.End
+
+Program.Sub.RemoveExclAccts.Start
+F.Intrinsic.Control.SetErrorHandler("LoadData_Err")
+F.Intrinsic.Control.ClearErrors
+V.Local.sError.Declare(String)
+v.Local.sProps.Declare(String) 
+v.Local.iRet.Declare(Long)
+v.Local.i.Declare(Long)
+v.Local.sExp.Declare(String)
+v.Local.sOrd.Declare(String) 
+v.Local.iO.Declare(Long)
+'Sort acct numbers ascending.
+Function.Intrinsic.Control.Try
+	'Bring in all 90 exclusion accounts.
+	F.Global.Object.LoadDataTable("dtExclAcct","oExclAcct","Accounting.AR.ARExclusionAccounts","GlobalDB",v.Global.icon,1,TRUE,,1,90,V.Local.iRet)
+	F.Intrinsic.Control.If(v.DataTable.dtExclAcct.Exists,=,True)		
+		'remove.
+		F.Intrinsic.control.For(v.Local.i,0,v.DataTable.dtExclAcct.RowCount--,1)
+			F.Intrinsic.String.Build("[ShipmentLine-SalesOrderLine-Accounting-Account-AccountNumber] = '{0}'",v.DataTable.dtEXCLACCT(v.Local.i).Information-Account-AccountNumber.FieldValString,v.Local.sExp) 
+			Function.Data.DataTable.Select("dtINVOICE",v.Local.sExp,v.Local.sOrd)
+			F.Intrinsic.Control.If(v.Local.sOrd,<>,"***NORETURN***")
+				F.Intrinsic.String.Split(v.Local.sOrd,"*!*",v.Local.sORD)
+				Function.Intrinsic.String.SortAsc(v.Local.sord,v.Local.sOrd)
+				F.Intrinsic.Control.For(v.Local.iO,v.Local.sOrd.ubound,0,-1)
+					F.Data.DataTable.DeleteRow("dtINVOICE",v.Local.sOrd(v.Local.iO)) 
+				F.Intrinsic.Control.Next(v.Local.iO)		
+			Function.Intrinsic.Control.EndIf		
+		F.Intrinsic.Control.Next(v.Local.i)
+	F.Intrinsic.Control.EndIf
+Function.Intrinsic.Control.EndTry
+F.Intrinsic.Control.ExitSub
+F.Intrinsic.Control.Label("LoadData_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: BIR_SA_SUMM_BY_CUST_MONTH_NF_105.g2u",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	Function.Intrinsic.Control.CallSub(ss_form1_unload)
+Function.Intrinsic.Control.EndIf
+Program.Sub.RemoveExclAccts.End
+
+Program.Sub.RemoveProgressBills.Start
+F.Intrinsic.Control.SetErrorHandler("LoadData_Err")
+F.Intrinsic.Control.ClearErrors
+V.Local.sError.Declare(String)
+v.Local.sSel.Declare(String)
+v.Local.i.Declare(Long)
+F.Intrinsic.Control.If(v.DataTable.dtInvoice.Exists,=,True)
+	'Progress BIll (0 is False, 1 is True) = If ORDER_HIST_LINE: LINE_TYPE = 'P' (progress), set to 1; otherwise, set to 0.
+	F.Data.DataTable.AddExpressionColumn("dtInvoice","Progress-Bill-Line","Boolean","IIF([SHIPMENTLINE-SALESORDERLINE-Information-Type] = 5 ,True,False)")
+	F.Data.DataTable.Select("dtInvoice","[Progress-Bill-Line] = True",v.Local.sSel) 
+	Function.Intrinsic.Control.If(v.Local.sSel.Trim,<>,"***NORETURN***") 
+		f.Intrinsic.String.Split(v.Local.sSel,"*!*",v.Local.sSel)
+		F.Intrinsic.Control.For(v.Local.i,0,v.Local.sSel.UBound,1)
+			F.Data.DataTable.DeleteRow("dtInvoice",v.Local.sSel(v.Local.i))
+		F.Intrinsic.Control.Next(v.Local.i) 
+	Function.Intrinsic.Control.EndIf
+Function.Intrinsic.Control.EndIf
+F.Intrinsic.Control.ExitSub
+F.Intrinsic.Control.Label("LoadData_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: BIR_SA_SUMM_BY_CUST_MONTH_NF_105.g2u",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	Function.Intrinsic.Control.CallSub(ss_form1_unload)
+Function.Intrinsic.Control.EndIf
+Program.Sub.RemoveProgressBills.End
+
+Program.Sub.SS_Form1_UnLoad.Start
+Function.Intrinsic.Control.End
+
+Program.Sub.SS_Form1_UnLoad.End
+
+Program.Sub.LoadData.Start
+F.Intrinsic.Control.SetErrorHandler("LoadData_Err")
+F.Intrinsic.Control.ClearErrors
+V.Local.sError.Declare(String)
+v.Local.iRet.Declare(Long) 
+v.Local.dDateStart.Declare(Date)
+v.Local.dDateEnd.Declare(Date)
+v.local.sProps.Declare(String)
+v.Local.dDateStart.Set(v.Args.dDateStart) 
+v.Local.dDateEnd.Set(v.Args.dDateEnd)
+'Join on Invoices 263 and InvoiceLines 386 params start and end date.
+v.Local.sProps.Set("L.Information-InvoiceDate*!*L.ShipmentLine-SalesOrderLine-Information-Type*!*L.ShipmentLine-SalesOrderLine-Accounting-Account-AccountNumber*!*L.SHIPMENTLINE-SALESORDERLINE-PRICING-MONETARYVALUE-COMPANY-EXTENDED*!*")
+v.Local.sProps.Append("L.InvoiceNumber*!*L.SalesOrderLineNumber*!*L.SalesOrderNumber*!*L.ShipmentSequence*!*H.Shipment-SalesOrder-Customer-CustomerNumber*!*H.Shipment-SalesOrderShipTo-Shipping-Address-Name*!*H.Shipment-SalesOrderShipto-Shipping-Address-State*!*H.Shipment-SalesOrderShipTo-Shipping-Address-City")
+Function.Intrinsic.Control.Try
+	Function.Intrinsic.Control.If(v.DataTable.dtInvoice.exists,=,True) 
+		F.Data.Linq.Join("InnerJoin","Object","oLine*!*L",386,"GlobalDB",v.Global.iCon,v.Local.dDateStart.DateComp,v.Local.dDateEnd.DateComp,"Object","oHead*!*H",263,"GLOBALDB",v.Global.iCon,,"L.InvoiceNumber =  H.InvoiceNumber",v.Local.sprops,"","","","dtTemp",True)
+		Function.Intrinsic.Control.If(v.DataTable.dtTemp.Exists,=,True) 
+			F.Data.DataTable.Merge("dtTemp","dtInvoice",True,4)
+			F.Data.DataTable.Close("dtTemp") 
+		Function.Intrinsic.Control.EndIf
+	Function.Intrinsic.Control.Else 
+		F.Data.Linq.Join("InnerJoin","Object","oLine*!*L",386,"GlobalDB",v.Global.iCon,v.Local.dDateStart.DateComp,v.Local.dDateEnd.DateComp,"Object","oHead*!*H",263,"GLOBALDB",v.Global.iCon,,"L.InvoiceNumber =  H.InvoiceNumber",v.Local.sprops,"","","","dtInvoice",True)
+	Function.Intrinsic.Control.EndIf 
+Function.Intrinsic.Control.EndTry
+F.Intrinsic.Control.ExitSub
+F.Intrinsic.Control.Label("LoadData_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: BIR_SA_SUMM_BY_CUST_MONTH_NF_105.g2u",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	Function.Intrinsic.Control.CallSub(ss_form1_unload)
+Function.Intrinsic.Control.EndIf
+
+Program.Sub.LoadData.End
+
+Program.Sub.SummarizeData.Start
+'F.Intrinsic.Control.SetErrorHandler("SummarizeData_Err")
+'F.Intrinsic.Control.ClearErrors
+V.Local.sError.Declare(String)
+v.Local.i.Declare(Long) 
+v.Local.sSel.Declare(String) 
+v.Local.iC.Declare(Long)
+v.Local.sRet.Declare(String) 
+v.Local.bEx.Declare(Boolean)
+v.Local.iMonth.Declare(Long)
+v.Local.iYear.Declare(Long)
+v.Local.iY.Declare(Long)
+v.Local.iM.Declare(Long)
+v.Local.iRow.Declare(Long)
+v.Local.fSum.Declare(Float)
+v.Local.dBegDate.Declare(Date)
+v.Local.dEndDate.Declare(Date)
+v.Local.sFieldName.Declare(String) 
+v.Local.sNames.Declare(String)
+v.Local.iYear.Set(v.Args.Year)
+'create a new dt to store information. 
+F.Data.DataTable.Create("dtCustSummary",True) 
+F.Data.DataTable.AddColumn("dtCustSummary","Cust_NO","String") 
+f.Data.DataTable.AddColumn("dtCustSummary","Cust_Name","String") 
+f.Data.DataTable.AddColumn("dtCustSummary","Cust_City","String")
+f.Data.DataTable.AddColumn("dtCustSummary","Cust_State","String") 
+'loop 
+F.Intrinsic.Control.For(v.Local.i,1,12,1) 
+	F.Intrinsic.String.Build("Curr_Sales_{0}",v.Local.i,v.Local.sSel)
+	F.Data.DataTable.AddColumn("dtCustSummary",v.Local.sSel,"Float")
+	F.Intrinsic.String.Build("Prev_Sales_{0}",v.Local.i,v.local.sSel)
+	f.Data.DataTable.AddColumn("dtCustSummary",v.Local.sSel,"Float")	
+F.Intrinsic.Control.Next(v.Local.i) 
+'add a 3rd year sum 
+F.Data.DataTable.AddColumn("dtCustSummary","YEAR_3_SALES","Float")
+'have to summarize by year and customer. summing the extension amount based on month and customer. 
+'create a dictionary for the customer numbers since this will be our baseline on the summary pers year. 
+F.Data.DataView.Create("dtInvoice","dvInvoice") 
+F.Intrinsic.Control.If(v.DataTable.dtInvoice.Exists,=,True)
+	F.Data.Dictionary.CreateFromDataView("dictCustomers","dtInvoice","dvInvoice","Shipment-SalesOrder-Customer-CustomerNumber","Shipment-SalesOrderShipTo-Shipping-Address-Name",4)
+'	F.Data.Dictionary.CreateFromDataTable("dictCustomers","dtInvoice","Shipment-SalesOrder-Customer-CustomerNumber","Shipment-SalesOrderShipTo-Shipping-Address-Name",4)	
+	'create for Customer And State. 
+	F.Data.Dictionary.CreateFromDataView("dictCustStates","dtInvoice","dvInvoice","Shipment-SalesOrder-Customer-CustomerNumber","Shipment-SalesOrderShipto-Shipping-Address-State",4) 
+	F.Data.Dictionary.CreateFromDataView("dictCustCity","dtInvoice","dvInvoice","Shipment-SalesOrder-Customer-CustomerNumber","Shipment-SalesOrderShipto-Shipping-Address-City",4) 
+Function.Intrinsic.Control.EndIf
+f.Data.Dictionary.Exists("dictCustomers",v.Local.bEx) 
+Function.Intrinsic.Control.If(v.Local.bEx,=,True) 
+	f.Data.Dictionary.ReturnAllPairs("dictCustomers",v.Local.sRet) 
+Function.Intrinsic.Control.EndIf
+
+Function.Intrinsic.Control.If(v.Local.sret.Trim,<>,"***NORETURN***") 
+	f.Intrinsic.String.Split(v.Local.sRet,"!*!",v.Local.sRet) 
+	F.Intrinsic.String.Split(v.Local.sRet(1),"*!*",v.Local.sNames)
+	f.Intrinsic.String.Split(v.Local.sRet(0),"*!*",v.Local.sRet)
+	'for every customer for every year and for every month we have to sum the extension. 
+	'and we go back 2 years per monht, then the 3rd year we just sum by year
+	F.Intrinsic.Control.For(v.Local.i,v.Local.sRet.LBound,v.Local.sRet.UBound,1)	
+		'for every customer, for every year, for everymonth
+		F.Data.DataTable.AddRow("dtCustSummary") 
+		v.Local.iRow.Set(v.DataTable.dtCustSummary.RowCount--)	
+		F.Data.DataTable.SetValue("dtCustSummary",v.Local.iRow,"Cust_NO",v.Local.sRet(v.Local.i))			
+		F.Intrinsic.Control.For(v.Local.iM,1,12,1)
+			'Current year and Month
+			F.Intrinsic.Date.DateSerial(v.Local.iYear,v.Local.iM,01,v.Local.dBegDate)
+			F.Intrinsic.Date.EndOfMonth(v.Local.dBegDate,v.Local.dEndDate)				
+			'field will be Curr_month_#
+			F.Intrinsic.String.Build("Curr_Sales_{0}",v.Local.iM,v.Local.sFieldName)
+			F.Intrinsic.String.Build("[Shipment-SalesOrder-Customer-CustomerNumber] = '{0}' And [INFORMATION-INVOICEDATE] >= '{1}' And [INFORMATION-INVOICEDATE] <= '{2}'",v.Local.sRet(v.Local.i),v.Local.dBegDate,v.Local.dEndDate,v.Local.sSel) 
+			F.Data.DataTable.Compute("dtInvoice","Sum([SHIPMENTLINE-SALESORDERLINE-PRICING-MONETARYVALUE-COMPANY-EXTENDED])",v.Local.sSel,v.Local.fSum) 
+			F.Data.DataTable.SetValue("dtCustSummary",v.Local.iRow,v.Local.sFieldName,v.Local.fSum)				
+			'Previous Year and Month
+			F.Intrinsic.Date.DateAdd("YYYY",-1,v.Local.dBegDate,v.Local.dBegDate)
+			f.Intrinsic.Date.DateAdd("YYYY",-1,v.Local.dEndDate,v.Local.dEndDate)
+			'field will be Prev_month_#
+			F.Intrinsic.String.Build("Prev_Sales_{0}",v.Local.iM,v.Local.sFieldName)
+			F.Intrinsic.String.Build("[Shipment-SalesOrder-Customer-CustomerNumber] = '{0}' And [INFORMATION-INVOICEDATE] >= '{1}' And [INFORMATION-INVOICEDATE] <= '{2}'",v.Local.sRet(v.Local.i),v.Local.dBegDate,v.Local.dEndDate,v.Local.sSel) 
+			F.Data.DataTable.Compute("dtInvoice","Sum([SHIPMENTLINE-SALESORDERLINE-PRICING-MONETARYVALUE-COMPANY-EXTENDED])",v.Local.sSel,v.Local.fSum) 
+			F.Data.DataTable.SetValue("dtCustSummary",v.Local.iRow,v.Local.sFieldName,v.Local.fSum)				
+			'add a year back.
+			F.Intrinsic.Date.DateAdd("YYYY",1,v.Local.dBegDate,v.Local.dBegDate)
+			f.Intrinsic.Date.DateAdd("YYYY",1,v.Local.dEndDate,v.Local.dEndDate)						
+		F.Intrinsic.Control.Next(v.Local.iM)				
+		'get 3rd year summation for entire year.
+		F.Intrinsic.Date.DateSerial(v.Local.iyear,01,01,v.Local.dBegDate)
+		F.Intrinsic.Date.DateSerial(v.local.iyear,12,31,v.Local.dEndDate)
+		F.Intrinsic.Date.DateAdd("YYYY",-2,v.Local.dBegDate,v.Local.dBegDate)
+		F.Intrinsic.Date.DateAdd("YYYY",-2,v.Local.dEndDate,v.Local.dEndDate)		
+		F.Intrinsic.String.Build("[Shipment-SalesOrder-Customer-CustomerNumber] = '{0}' And [INFORMATION-INVOICEDATE] >= '{1}' And [INFORMATION-INVOICEDATE] <= '{2}'",v.Local.sRet(v.Local.i),v.Local.dBegDate,v.Local.dEndDate,v.Local.sSel)
+		F.Data.DataTable.Compute("dtInvoice","Sum([SHIPMENTLINE-SALESORDERLINE-PRICING-MONETARYVALUE-COMPANY-EXTENDED])",v.Local.sSel,v.Local.fSum)		
+		F.Data.DataTable.SetValue("dtCustSummary",v.Local.iRow,"Year_3_Sales",v.Local.fSum)					
+		F.Intrinsic.Date.DateAdd("YYYY",2,v.Local.dBegDate,v.Local.dBegDate)
+		F.Intrinsic.Date.DateAdd("YYYY",2,v.Local.dEndDate,v.Local.dEndDate)		
+	f.Intrinsic.Control.Next(v.Local.i)  	
+	F.Data.DataTable.FillFromDictionary("dtCustSummary","dictCustomers","Cust_NO","Cust_Name")
+	F.Data.DataTable.FillFromDictionary("dtCustSummary","dictCustStates","Cust_NO","Cust_State")
+	F.Data.DataTable.FillFromDictionary("dtCustSummary","dictCustCity","Cust_NO","Cust_City")
+Function.Intrinsic.Control.EndIf
+F.Intrinsic.Control.ExitSub
+'F.Intrinsic.Control.Label("SummarizeData_Err")
+'F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+'	Function.Intrinsic.String.Concat("Project: BIR_SA_SUMM_BY_CUST_MONTH_NF_105.g2u",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+'	F.Intrinsic.UI.Msgbox(V.Local.sError)
+'	Function.Intrinsic.Control.CallSub(ss_form1_unload)
+'Function.Intrinsic.Control.EndIf
+Program.Sub.SummarizeData.End
+
+Program.Sub.SavetoDB.Start
+F.Intrinsic.Control.SetErrorHandler("SavetoDB_Err")
+F.Intrinsic.Control.ClearErrors
+V.Local.sError.Declare(String)
+v.Local.sSQL.Declare(String) 
+F.Data.DataTable.AddColumn("dtCustSummary","BIRUNID","Long") 
+F.Data.DataTable.SetValue("dtCustSummary",-1,"BIRUNID",v.Global.iBIRUNID)
+'Shouldn't need a field map. 
+F.Data.DataTable.SaveToDB("dtCustSummary","conX","Z_SA_SUM_CSTMNTH_NF","BIRUNID",128)
+F.Intrinsic.Control.ExitSub
+F.Intrinsic.Control.Label("SavetoDB_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: BIR_SA_SUMM_BY_CUST_MONTH_NF_105.g2u",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	Function.Intrinsic.Control.CallSub(ss_form1_unload)
+Function.Intrinsic.Control.EndIf
+Program.Sub.SavetoDB.End
+
+Program.Sub.CALLBI.Start
+F.Intrinsic.Control.SetErrorHandler("CALLBI_Err")
+F.Intrinsic.Control.ClearErrors
+V.Local.sError.Declare(String)
+v.Local.sParams.Declare(String)
+v.Local.sVals.Declare(String) 
+v.Local.sParams.Set("YEAR*!*INCLPROG*!*EXCLUSION")
+'need year value only.
+F.Intrinsic.String.Format(v.Screen.SS_Form1!dtpYear.Value,"yyyy",v.Local.sVals)
+f.Intrinsic.String.Build("{0}*!*{1}*!*{2}",v.Local.sVals,v.Screen.SS_Form1!chkProgBill.CheckedAsBoolean,v.Screen.SS_Form1!chkExclusion.CheckedAsBoolean,v.Local.sVals)
+F.Global.BI.StopLogging(v.Global.iLOGID) 
+F.Global.BI.RunReportPreProcessor(v.Global.iBIRUNID,v.Global.iLOGID,v.Local.sParams,v.Local.sVals,"",-1,True,"",-1,"",-1,"","",v.Global.iLOGID) 
+F.Intrinsic.Control.ExitSub
+F.Intrinsic.Control.Label("CALLBI_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: BIR_SA_SUMM_BY_CUST_MONTH_NF_105.g2u",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	Function.Intrinsic.Control.CallSub(ss_form1_unload)
+Function.Intrinsic.Control.EndIf
+Program.Sub.CALLBI.End
+
+Program.Sub.Comments.Start
+${$0$}$$}$TRT$}$04/14/2017 8:26:39 AM$}$False
+Program.Sub.Comments.End
+
+Program.Sub.ScreenSS.Start
+SS_Form1{{CAPTION::Summary By Customer/Month - NonFiscal
+SS_Form1.CTRL{{NAME::dtpYear\\TYPE::6\\CAPTION::Year\\GROUP::-1\\BROWSER::0\\INTL::375601\\SIZE::1
+SS_Form1.CTRL{{NAME::chkProgBill\\TYPE::9\\CAPTION::Include Progress Bill Lines\\GROUP::-1\\BROWSER::0\\INTL::291501\\SIZE::1
+SS_Form1.CTRL{{NAME::chkExclusion\\TYPE::9\\CAPTION::Use Exclusion Accounts to Exclude Records\\GROUP::-1\\BROWSER::0\\INTL::229908\\SIZE::1
+SS_Form1.CTRL{{NAME::cmdPrint\\TYPE::5\\CAPTION::Print\\GROUP::-1\\BROWSER::0\\INTL::452800\\SIZE::1
+
+Program.Sub.ScreenSS.End
